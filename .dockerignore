@@ -1,0 +1,11 @@
+.env
+credentials.json
+__pycache__/
+*.py[cod]
+.venv/
+vhack/
+Cache/
+.agent/
+tests/
+.git/
+*.log
