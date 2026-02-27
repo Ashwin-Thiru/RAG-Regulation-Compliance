@@ -1,0 +1,24 @@
+# Secrets — never commit these
+.env
+credentials.json
+*.pem
+*.key
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+vhack/
+
+# Project specific
+Cache/
+.agent/
+*.log
+compliance_rag.log
+
+# IDE
+.vscode/
+.idea/
+.DS_Store
