@@ -1,0 +1,1103 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ComplianceAI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Playfair+Display:wght@600;700&family=DM+Sans:wght@300;400;500&display=swap"
+    rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
+  <style>
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --bg: #0b0c0f;
+      --surface: #13151a;
+      --surface2: #1a1d24;
+      --surface3: #21242d;
+      --border: #2a2d38;
+      --border2: #353848;
+      --gold: #c9a84c;
+      --gold-dim: #8a6f2e;
+      --gold-glow: rgba(201, 168, 76, 0.12);
+      --text: #e8e6e0;
+      --text-dim: #8a8880;
+      --text-faint: #4a4845;
+      --green: #4caf82;
+      --red: #cf6679;
+      --blue: #6b8fd4;
+      --radius: 8px;
+      --sidebar-w: 264px;
+    }
+
+    html,
+    body,
+    #root {
+      height: 100%;
+    }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      overflow: hidden;
+    }
+
+    .app {
+      display: flex;
+      height: 100vh;
+    }
+
+    /* ── Sidebar ── */
+    .sidebar {
+      width: var(--sidebar-w);
+      min-width: var(--sidebar-w);
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .sidebar-header {
+      padding: 20px 18px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .logo {
+      font-family: 'Playfair Display', serif;
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--gold);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .logo-sub {
+      font-family: 'DM Mono', monospace;
+      font-size: 9px;
+      color: var(--text-dim);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      margin-top: 3px;
+    }
+
+    .pipeline-status {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      margin-top: 14px;
+      padding: 7px 10px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      font-size: 11px;
+      color: var(--text-dim);
+    }
+
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--text-faint);
+      flex-shrink: 0;
+    }
+
+    .status-dot.ok {
+      background: var(--green);
+      box-shadow: 0 0 6px var(--green);
+      animation: pulse 2s infinite;
+    }
+
+    .status-dot.err {
+      background: var(--red);
+    }
+
+    .status-dot.spin {
+      background: var(--gold);
+      animation: blink 0.8s infinite;
+    }
+
+    @keyframes pulse {
+
+      0%,
+      100% {
+        opacity: 1
+      }
+
+      50% {
+        opacity: 0.5
+      }
+    }
+
+    @keyframes blink {
+
+      0%,
+      100% {
+        opacity: 1
+      }
+
+      50% {
+        opacity: 0.3
+      }
+    }
+
+    .sidebar-section {
+      padding: 14px 18px 8px;
+      font-family: 'DM Mono', monospace;
+      font-size: 9px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--text-faint);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .doc-count-badge {
+      background: var(--gold-glow);
+      border: 1px solid var(--gold-dim);
+      color: var(--gold);
+      padding: 1px 6px;
+      border-radius: 10px;
+      font-size: 9px;
+    }
+
+    .docs-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0 10px 10px;
+    }
+
+    .docs-list::-webkit-scrollbar {
+      width: 3px;
+    }
+
+    .docs-list::-webkit-scrollbar-thumb {
+      background: var(--border2);
+      border-radius: 2px;
+    }
+
+    .doc-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      padding: 9px 8px;
+      border-radius: var(--radius);
+      margin-bottom: 2px;
+      transition: background 0.15s;
+    }
+
+    .doc-item:hover {
+      background: var(--surface2);
+    }
+
+    .doc-icon {
+      font-size: 12px;
+      margin-top: 1px;
+      flex-shrink: 0;
+      opacity: 0.7;
+    }
+
+    .doc-name {
+      font-size: 11px;
+      color: var(--text-dim);
+      line-height: 1.4;
+      word-break: break-all;
+      font-family: 'DM Mono', monospace;
+    }
+
+    .no-docs {
+      padding: 24px 8px;
+      font-size: 11px;
+      color: var(--text-faint);
+      text-align: center;
+      line-height: 1.8;
+    }
+
+    .sidebar-footer {
+      padding: 12px 18px;
+      border-top: 1px solid var(--border);
+      font-size: 10px;
+      color: var(--text-faint);
+      font-family: 'DM Mono', monospace;
+    }
+
+    /* ── Main ── */
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .topbar {
+      height: 52px;
+      min-height: 52px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 24px;
+      gap: 12px;
+      background: var(--surface);
+    }
+
+    .topbar-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .topbar-model {
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      color: var(--text-faint);
+      margin-left: auto;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      padding: 3px 9px;
+      border-radius: 12px;
+    }
+
+    .messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 28px 0;
+    }
+
+    .messages::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .messages::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 2px;
+    }
+
+    /* Empty state */
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      gap: 16px;
+      padding: 40px;
+    }
+
+    .empty-icon {
+      font-size: 36px;
+      opacity: 0.3;
+    }
+
+    .empty-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 22px;
+      font-weight: 600;
+      color: var(--text);
+      opacity: 0.5;
+    }
+
+    .empty-sub {
+      font-size: 13px;
+      color: var(--text-faint);
+      text-align: center;
+      max-width: 360px;
+      line-height: 1.7;
+    }
+
+    .suggestions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: center;
+      margin-top: 8px;
+      max-width: 520px;
+    }
+
+    .suggestion-btn {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+      font-size: 11.5px;
+      padding: 7px 13px;
+      border-radius: 20px;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: 'DM Sans', sans-serif;
+    }
+
+    .suggestion-btn:hover {
+      border-color: var(--gold-dim);
+      color: var(--gold);
+      background: var(--gold-glow);
+    }
+
+    /* Message rows */
+    .message-row {
+      padding: 6px 28px;
+      animation: fadeSlide 0.22s ease;
+    }
+
+    @keyframes fadeSlide {
+      from {
+        opacity: 0;
+        transform: translateY(7px)
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0)
+      }
+    }
+
+    .message-row.user {
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    .message-row.ai {
+      display: flex;
+      flex-direction: column;
+      max-width: 860px;
+    }
+
+    .user-bubble {
+      background: var(--surface3);
+      border: 1px solid var(--border2);
+      border-radius: 14px 14px 4px 14px;
+      padding: 11px 16px;
+      font-size: 14px;
+      color: var(--text);
+      max-width: 560px;
+      line-height: 1.6;
+    }
+
+    .ai-header {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      margin-bottom: 10px;
+    }
+
+    .ai-avatar {
+      width: 28px;
+      height: 28px;
+      background: linear-gradient(135deg, var(--gold-dim), var(--gold));
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      flex-shrink: 0;
+    }
+
+    .ai-name {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--gold);
+      font-family: 'DM Mono', monospace;
+    }
+
+    /* Trace card */
+    .trace-card {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      margin-bottom: 12px;
+    }
+
+    .trace-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      cursor: pointer;
+      user-select: none;
+      background: var(--surface2);
+      transition: background 0.15s;
+    }
+
+    .trace-header:hover {
+      background: var(--surface3);
+    }
+
+    .trace-header-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--text-dim);
+      font-family: 'DM Mono', monospace;
+    }
+
+    .trace-spinner {
+      width: 12px;
+      height: 12px;
+      border: 1.5px solid var(--border2);
+      border-top-color: var(--gold);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    .trace-chevron {
+      font-size: 10px;
+      color: var(--text-faint);
+      transition: transform 0.2s;
+    }
+
+    .trace-chevron.open {
+      transform: rotate(180deg);
+    }
+
+    .trace-body {
+      border-top: 1px solid var(--border);
+      padding: 10px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    /* Step line */
+    .step-line {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      font-size: 12px;
+      color: var(--text-faint);
+      padding: 3px 0;
+      animation: fadeSlide 0.18s ease;
+    }
+
+    .step-icon {
+      font-size: 11px;
+      width: 16px;
+      text-align: center;
+      flex-shrink: 0;
+    }
+
+    .step-label {
+      flex: 1;
+    }
+
+    .step-ms {
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      color: var(--text-faint);
+    }
+
+    .step-mini-spinner {
+      width: 10px;
+      height: 10px;
+      border: 1.5px solid var(--border2);
+      border-top-color: var(--blue);
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+    }
+
+    .step-line.active {
+      color: var(--text-dim);
+    }
+
+    /* Chunk card */
+    .chunk-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--gold-dim);
+      border-radius: 0 var(--radius) var(--radius) 0;
+      padding: 8px 11px;
+      margin: 3px 0;
+      animation: fadeSlide 0.2s ease;
+    }
+
+    .chunk-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 5px;
+    }
+
+    .chunk-rank {
+      font-family: 'DM Mono', monospace;
+      font-size: 9px;
+      background: var(--gold-glow);
+      border: 1px solid var(--gold-dim);
+      color: var(--gold);
+      padding: 1px 6px;
+      border-radius: 10px;
+    }
+
+    .chunk-source {
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      color: var(--text-dim);
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .chunk-score {
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      color: var(--green);
+    }
+
+    .chunk-snippet {
+      font-size: 11px;
+      color: var(--text-faint);
+      line-height: 1.5;
+      font-style: italic;
+    }
+
+    /* Answer */
+    .answer-bubble {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px 18px;
+      font-size: 14px;
+      line-height: 1.75;
+      color: var(--text);
+    }
+
+    .answer-bubble p {
+      margin-bottom: 10px;
+    }
+
+    .answer-bubble p:last-child {
+      margin-bottom: 0;
+    }
+
+    .answer-bubble strong {
+      color: var(--gold);
+      font-weight: 500;
+    }
+
+    .answer-bubble ul,
+    .answer-bubble ol {
+      padding-left: 20px;
+      margin-bottom: 10px;
+    }
+
+    .answer-bubble li {
+      margin-bottom: 4px;
+    }
+
+    .answer-bubble code {
+      background: var(--surface3);
+      border: 1px solid var(--border);
+      padding: 1px 5px;
+      border-radius: 3px;
+      font-family: 'DM Mono', monospace;
+      font-size: 12px;
+    }
+
+    .cursor {
+      display: inline-block;
+      width: 2px;
+      height: 14px;
+      background: var(--gold);
+      margin-left: 2px;
+      vertical-align: middle;
+      animation: blink 0.8s infinite;
+    }
+
+    /* Sources */
+    .sources-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 10px;
+    }
+
+    .source-chip {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 5px 10px;
+      font-size: 11px;
+      color: var(--text-dim);
+      font-family: 'DM Mono', monospace;
+    }
+
+    .source-chip-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--green);
+    }
+
+    /* Input */
+    .input-area {
+      border-top: 1px solid var(--border);
+      padding: 16px 24px 20px;
+      background: var(--surface);
+    }
+
+    .input-box {
+      display: flex;
+      align-items: flex-end;
+      gap: 10px;
+      background: var(--surface2);
+      border: 1px solid var(--border2);
+      border-radius: 12px;
+      padding: 10px 10px 10px 16px;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .input-box:focus-within {
+      border-color: var(--gold-dim);
+      box-shadow: 0 0 0 3px var(--gold-glow);
+    }
+
+    textarea {
+      flex: 1;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      resize: none;
+      line-height: 1.5;
+      max-height: 120px;
+      padding: 2px 0;
+    }
+
+    textarea::placeholder {
+      color: var(--text-faint);
+    }
+
+    .send-btn {
+      width: 34px;
+      height: 34px;
+      background: var(--gold);
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #0b0c0f;
+      font-size: 15px;
+      flex-shrink: 0;
+      transition: background 0.15s, transform 0.1s;
+    }
+
+    .send-btn:hover {
+      background: #d4b05c;
+    }
+
+    .send-btn:active {
+      transform: scale(0.95);
+    }
+
+    .send-btn:disabled {
+      background: var(--surface3);
+      color: var(--text-faint);
+      cursor: not-allowed;
+    }
+
+    .input-hint {
+      font-size: 10px;
+      color: var(--text-faint);
+      margin-top: 7px;
+      font-family: 'DM Mono', monospace;
+      text-align: center;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="root"></div>
+
+  <script>
+    const API = 'http://localhost:8080';
+
+    // ── DOM helpers ───────────────────────────────────────────────────────────────
+    const h = (tag, attrs = {}, ...children) => {
+      const el = document.createElement(tag);
+      for (const [k, v] of Object.entries(attrs)) {
+        if (k === 'class') el.className = v;
+        else if (k === 'style' && typeof v === 'object') Object.assign(el.style, v);
+        else if (k.startsWith('on')) el.addEventListener(k.slice(2).toLowerCase(), v);
+        //else el.setAttribute(k, v);
+        else if (k === 'disabled') { if (v) el.disabled = true; }
+        else el.setAttribute(k, v);
+      }
+      children.flat().forEach(c => {
+        if (c == null) return;
+        el.appendChild(typeof c === 'string' ? document.createTextNode(c) : c);
+      });
+      return el;
+    };
+
+    // ── State ─────────────────────────────────────────────────────────────────────
+    let messages = [];
+    let streaming = false;
+    let docs = [];
+    let pipelineOk = false;
+
+    // ── Boot ──────────────────────────────────────────────────────────────────────
+    async function init() {
+      await checkHealth();
+      await loadDocs();
+      renderAll();
+      setInterval(async () => {
+        await checkHealth();
+        await loadDocs();
+        renderSidebar();
+      }, 8000);
+    }
+
+    async function checkHealth() {
+      try {
+        const r = await fetch(`${API}/api/health`);
+        const d = await r.json();
+        pipelineOk = d.pathway && d.groq;
+      } catch { pipelineOk = false; }
+    }
+
+    async function loadDocs() {
+      try {
+        const r = await fetch(`${API}/api/documents`);
+        const d = await r.json();
+        docs = d.documents || [];
+      } catch { docs = []; }
+    }
+
+    // ── SSE streaming query ───────────────────────────────────────────────────────
+    async function sendQuery(question) {
+      if (streaming || !question.trim()) return;
+      streaming = true;
+
+      messages.push({ id: Date.now(), role: 'user', content: question });
+
+      const aiMsg = {
+        id: Date.now() + 1, role: 'ai',
+        content: '', steps: [], chunks: [], sources: [],
+        done: false, traceOpen: true
+      };
+      messages.push(aiMsg);
+      renderAll();
+      scrollBottom();
+
+      try {
+        const resp = await fetch(`${API}/api/query`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ question })
+        });
+
+        const reader = resp.body.getReader();
+        const decoder = new TextDecoder();
+        let buf = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buf += decoder.decode(value, { stream: true });
+          const lines = buf.split('\n');
+          buf = lines.pop();
+
+          for (const line of lines) {
+            if (!line.startsWith('data: ')) continue;
+            const raw = line.slice(6).trim();
+            if (!raw) continue;
+            let evt;
+            try { evt = JSON.parse(raw); } catch { continue; }
+            handleEvent(aiMsg, evt);
+          }
+        }
+      } catch (e) {
+        aiMsg.content = `⚠️ Connection error: ${e.message}`;
+        aiMsg.done = true;
+        patchAiMessage(aiMsg);
+      }
+
+      //streaming = false;
+      //document.querySelector('textarea')?.focus();
+      streaming = false;
+      const ta = document.querySelector('textarea');
+      const btn = document.querySelector('button.send-btn');
+      if (ta) ta.disabled = false;
+      if (btn) btn.disabled = false;
+      if (ta) ta.focus();
+    }
+
+    function handleEvent(aiMsg, evt) {
+      switch (evt.type) {
+        case 'step': {
+          const ex = aiMsg.steps.find(s => s.id === evt.id);
+          if (ex) { ex.status = evt.status; ex.label = evt.label; if (evt.ms != null) ex.ms = evt.ms; }
+          else aiMsg.steps.push({ id: evt.id, status: evt.status, label: evt.label, ms: evt.ms });
+          patchAiMessage(aiMsg); break;
+        }
+        case 'chunk': {
+          aiMsg.chunks.push(evt);
+          patchAiMessage(aiMsg); break;
+        }
+        case 'token': {
+          aiMsg.content += evt.text;
+          patchAiMessage(aiMsg);
+          scrollBottom(); break;
+        }
+        case 'sources': {
+          aiMsg.sources = evt.sources;
+          patchAiMessage(aiMsg); break;
+        }
+        case 'done': {
+          aiMsg.done = true;
+          aiMsg.traceOpen = false;   // auto-collapse — real work is done, show answer
+          patchAiMessage(aiMsg); break;
+        }
+        case 'error': {
+          aiMsg.content = `⚠️ ${evt.message}`;
+          aiMsg.done = true;
+          patchAiMessage(aiMsg); break;
+        }
+      }
+    }
+
+    // ── Render: full page ─────────────────────────────────────────────────────────
+    function renderAll() {
+      const root = document.getElementById('root');
+      root.innerHTML = '';
+      root.appendChild(buildApp());
+    }
+
+    function buildApp() {
+      return h('div', { class: 'app' }, buildSidebar(), buildMain());
+    }
+
+    // ── Sidebar ───────────────────────────────────────────────────────────────────
+    function buildSidebar() {
+      const sb = h('div', { class: 'sidebar', id: 'sidebar' });
+      sb.appendChild(h('div', { class: 'sidebar-header' },
+        h('div', { class: 'logo' }, h('span', {}, '🛡'), 'ComplianceAI'),
+        h('div', { class: 'logo-sub' }, 'Real-Time Regulatory Intelligence'),
+        buildStatusBadge()
+      ));
+      sb.appendChild(h('div', { class: 'sidebar-section' },
+        'Indexed Documents',
+        h('span', { class: 'doc-count-badge' }, String(docs.length))
+      ));
+      const list = h('div', { class: 'docs-list' });
+      if (docs.length === 0) {
+        list.appendChild(h('div', { class: 'no-docs' }, '📭 No documents indexed yet. Upload PDFs to your Google Drive folder.'));
+      } else {
+        docs.forEach(doc => list.appendChild(
+          h('div', { class: 'doc-item' },
+            h('span', { class: 'doc-icon' }, '📄'),
+            h('span', { class: 'doc-name' }, doc.name)
+          )
+        ));
+      }
+      sb.appendChild(list);
+      sb.appendChild(h('div', { class: 'sidebar-footer' }, 'Pathway · Groq · Llama-3.3-70B'));
+      return sb;
+    }
+
+    function buildStatusBadge() {
+      const cls = streaming ? 'status-dot spin' : pipelineOk ? 'status-dot ok' : 'status-dot err';
+      const lbl = streaming ? 'Processing...' : pipelineOk ? 'Pipeline active' : 'Pipeline offline';
+      return h('div', { class: 'pipeline-status' }, h('div', { class: cls }), h('span', {}, lbl));
+    }
+
+    function renderSidebar() {
+      const old = document.getElementById('sidebar');
+      if (old) old.replaceWith(buildSidebar());
+    }
+
+    // ── Main area ─────────────────────────────────────────────────────────────────
+    function buildMain() {
+      const main = h('div', { class: 'main' });
+      main.appendChild(h('div', { class: 'topbar' },
+        h('div', { class: 'topbar-title' }, 'Compliance Intelligence'),
+        h('div', { class: 'topbar-model' }, 'llama-3.3-70b-versatile')
+      ));
+      const msgs = h('div', { class: 'messages', id: 'messages-container' });
+      if (messages.length === 0) {
+        msgs.appendChild(buildEmptyState());
+      } else {
+        messages.forEach(msg => {
+          if (msg.role === 'user') {
+            msgs.appendChild(h('div', { class: 'message-row user' }, h('div', { class: 'user-bubble' }, msg.content)));
+          } else {
+            const row = h('div', { class: 'message-row ai', id: `msg-${msg.id}` });
+            row.appendChild(buildAiContent(msg));
+            msgs.appendChild(row);
+          }
+        });
+      }
+      main.appendChild(msgs);
+      main.appendChild(buildInputArea());
+      return main;
+    }
+
+    function buildEmptyState() {
+      const queries = [
+        'What are Basel III Tier 1 capital ratio requirements?',
+        'Summarize all open audit findings.',
+        'What CVC guidelines were violated?',
+        'Are there any GDPR data retention issues?'
+      ];
+      return h('div', { class: 'empty-state' },
+        h('div', { class: 'empty-icon' }, '⚖️'),
+        h('div', { class: 'empty-title' }, 'Ask a compliance question'),
+        h('div', { class: 'empty-sub' }, 'I search your live regulatory documents and answer with full source citations and evidence.'),
+        h('div', { class: 'suggestions' }, ...queries.map(q =>
+          h('button', { class: 'suggestion-btn', onclick: () => submitQuery(q) }, q)
+        ))
+      );
+    }
+
+    // ── AI message builder ────────────────────────────────────────────────────────
+    function buildAiContent(msg) {
+      const wrap = h('div', {});
+      wrap.appendChild(h('div', { class: 'ai-header' },
+        h('div', { class: 'ai-avatar' }, '⚖'),
+        h('span', { class: 'ai-name' }, 'ComplianceAI')
+      ));
+      if (msg.steps.length > 0 || msg.chunks.length > 0) {
+        wrap.appendChild(buildTraceCard(msg));
+      }
+      if (msg.content) {
+        const bubble = h('div', { class: 'answer-bubble' });
+        bubble.innerHTML = marked.parse(msg.content);
+        if (!msg.done) bubble.appendChild(h('span', { class: 'cursor' }));
+        wrap.appendChild(bubble);
+      } else if (!msg.done && msg.steps.length > 0) {
+        wrap.appendChild(h('div', { class: 'answer-bubble', style: { color: 'var(--text-faint)', fontStyle: 'italic', fontSize: '13px' } }, 'Generating response...'));
+      }
+      if (msg.sources && msg.sources.length > 0) {
+        const row = h('div', { class: 'sources-row' });
+        msg.sources.forEach(s => row.appendChild(
+          h('div', { class: 'source-chip' }, h('div', { class: 'source-chip-dot' }), s.name)
+        ));
+        wrap.appendChild(row);
+      }
+      return wrap;
+    }
+
+    function buildTraceCard(msg) {
+      const isActive = !msg.done;
+      const card = h('div', { class: 'trace-card' });
+
+      const header = h('div', { class: 'trace-header' });
+      const left = h('div', { class: 'trace-header-left' });
+      left.appendChild(isActive ? h('div', { class: 'trace-spinner' }) : h('span', {}, '✦'));
+      left.appendChild(h('span', {}, isActive ? 'Thinking...' : `${msg.chunks.length} sources reviewed`));
+      header.appendChild(left);
+      const chevron = h('span', { class: msg.traceOpen ? 'trace-chevron open' : 'trace-chevron' }, '▾');
+      header.appendChild(chevron);
+      header.onclick = () => { msg.traceOpen = !msg.traceOpen; patchAiMessage(msg); };
+      card.appendChild(header);
+
+      if (msg.traceOpen) {
+        const body = h('div', { class: 'trace-body' });
+
+        msg.steps.forEach(step => {
+          const line = h('div', { class: `step-line ${step.status}` });
+          const icon = h('span', { class: 'step-icon' });
+          if (step.status === 'active') {
+            icon.appendChild(h('div', { class: 'step-mini-spinner' }));
+          } else {
+            icon.textContent = '✓';
+            icon.style.color = 'var(--green)';
+          }
+          line.appendChild(icon);
+          line.appendChild(h('span', { class: 'step-label' }, step.label));
+          if (step.ms != null) line.appendChild(h('span', { class: 'step-ms' }, `${step.ms}ms`));
+          body.appendChild(line);
+        });
+
+        msg.chunks.forEach(chunk => {
+          const cc = h('div', { class: 'chunk-card' });
+          const meta = h('div', { class: 'chunk-meta' });
+          meta.appendChild(h('span', { class: 'chunk-rank' }, `#${chunk.rank}`));
+          meta.appendChild(h('span', { class: 'chunk-source' }, chunk.source));
+          meta.appendChild(h('span', { class: 'chunk-score' }, `${(chunk.similarity * 100).toFixed(1)}%`));
+          cc.appendChild(meta);
+          cc.appendChild(h('div', { class: 'chunk-snippet' }, `"${chunk.snippet}…"`));
+          body.appendChild(cc);
+        });
+
+        card.appendChild(body);
+      }
+      return card;
+    }
+
+    // targeted re-render for a single AI message (no full-page re-render during streaming)
+    function patchAiMessage(msg) {
+      const row = document.getElementById(`msg-${msg.id}`);
+      if (!row) return;
+      row.innerHTML = '';
+      row.appendChild(buildAiContent(msg));
+      renderSidebar();
+    }
+
+    // ── Input area ────────────────────────────────────────────────────────────────
+    function buildInputArea() {
+      const area = h('div', { class: 'input-area' });
+      const box = h('div', { class: 'input-box' });
+      const ta = h('textarea', {
+        placeholder: 'Ask a compliance question...',
+        rows: '1',
+        disabled: streaming ? 'true' : '',
+        onkeydown: (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitQuery(ta.value); } },
+        oninput: () => { ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 120) + 'px'; }
+      });
+      const btn = h('button', {
+        class: 'send-btn',
+        disabled: streaming ? 'true' : '',
+        onclick: () => submitQuery(ta.value)
+      }, '↑');
+      box.appendChild(ta); box.appendChild(btn);
+      area.appendChild(box);
+      area.appendChild(h('div', { class: 'input-hint' }, 'Enter to send  ·  Shift+Enter for new line'));
+      setTimeout(() => ta.focus(), 50);
+      return area;
+    }
+
+    function submitQuery(text) {
+      const q = text.trim();
+      if (!q || streaming) return;
+      const ta = document.querySelector('textarea');
+      if (ta) { ta.value = ''; ta.style.height = 'auto'; }
+      sendQuery(q);
+    }
+
+    function scrollBottom() {
+      const c = document.getElementById('messages-container');
+      if (c) c.scrollTop = c.scrollHeight;
+    }
+
+    init();
+  </script>
+</body>
+
+</html>

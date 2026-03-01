@@ -251,6 +251,7 @@ def run_demo() -> None:
 
         print("\n📋 [2/3] COMPLIANCE REPORT")
         print("─" * 55)
+        #print(repr(answer))  # temporary debug
         print(answer)
 
         print("\n[3/3] EVIDENCE & CITATIONS")
