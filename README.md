@@ -5,6 +5,7 @@
 [![Pathway](https://img.shields.io/badge/Framework-Pathway-green)](https://pathway.com/)
 [![LLM](https://img.shields.io/badge/LLM-Llama--3.3--70B-orange)](https://groq.com/)
 [![Inference](https://img.shields.io/badge/Inference-Groq-red)](https://groq.com/)
+[![FastAPI](https://img.shields.io/badge/API-FastAPI-009688)](https://fastapi.tiangolo.com/)
 [![License](https://img.shields.io/badge/license-MIT-lightgrey.svg)](LICENSE)
 [![Status](https://img.shields.io/badge/status-active-brightgreen.svg)]()
 [![CI](https://github.com/Ashwin-Thiru/RAG-Regulation-Compliance/actions/workflows/ci.yml/badge.svg)](https://github.com/Ashwin-Thiru/RAG-Regulation-Compliance/actions)
@@ -63,6 +64,8 @@ This system uses **Pathway's Unified Streaming Engine** to create a live, bidire
 
 The query layer connects to **Groq's ultra-low-latency inference** (Llama-3.3-70B) with a carefully engineered **Senior Compliance Officer persona** — delivering formal, citation-grounded answers in under 3 seconds.
 
+A **FastAPI + SSE backend** streams every step of the reasoning process to a real-time chat UI — embedding, retrieval, chunk evidence, and token-by-token answer generation — all visible live, with actual millisecond timings.
+
 ---
 
 ## 💼 Why This Matters
@@ -93,19 +96,36 @@ A compliance officer asking *"Are we within current Tier 1 capital ratio require
 │  ┌─────────────┐   ┌──────────────────┐   ┌──────────────────┐   │
 │  │   Docling    │──►│ SentenceTransfor │──►│ VectorStoreServer│   │
 │  │   Parser     │   │ mer (CUDA/CPU)   │   │  (Live-Sync)     │   │
-│  │  (PDF/DOCX)  │   │                  │   │                  │   │
+│  │  (PDF/DOCX)  │   │                  │   │  :8000           │   │
 │  └─────────────┘   └──────────────────┘   └──────────────────┘   │
 └─────────────────────────┬────────────────────────────────────────┘
                           │  Semantic search (top-k retrieval)
                           ▼
 ┌──────────────────────────────────────────────────────────────────┐
-│                   Groq API — Llama-3.3-70B                        │
-│             "Senior Compliance Officer" Persona                   │
-│          Formal · Precise · Citation-Aware Responses             │
+│                  FastAPI SSE Backend  :8080                       │
+│                                                                   │
+│   POST /api/query  ──►  stream_query()                           │
+│                         ├── step: embed (real ms)                │
+│                         ├── step: retrieve (real ms)             │
+│                         ├── chunk × N  (real evidence)           │
+│                         ├── step: llm (real TTFT ms)             │
+│                         └── token × N  (streamed from Groq)      │
 └─────────────────────────┬────────────────────────────────────────┘
-                          │
+                          │  Server-Sent Events (SSE)
                           ▼
-                 📋 Compliance Answer
+┌──────────────────────────────────────────────────────────────────┐
+│                  ComplianceAI Chat UI                             │
+│                                                                   │
+│  ┌──────────────────────────────────────────────────────────┐    │
+│  │  ⚙ Thinking...                                       ▾   │    │
+│  │  ✓ Query embedded                            47ms        │    │
+│  │  ✓ Retrieved 3 chunks                        47ms        │    │
+│  │  #1 CAPF_Report.pdf   54.4%  "Audit noted…"             │    │
+│  │  ✓ Streaming response...                     312ms       │    │
+│  └──────────────────────────────────────────────────────────┘    │
+│                                                                   │
+│  According to [Source 1]… ▌                                      │
+└──────────────────────────────────────────────────────────────────┘
 ```
 
 ### Component Breakdown
@@ -135,13 +155,28 @@ Embeddings are computed entirely **on-premise** using `SentenceTransformer` with
 
 Unlike Pinecone, Weaviate, or Chroma — which treat indexing as a separate async job — Pathway's `VectorStoreServer` is part of the same unified data pipeline. Updates are applied atomically with no eventual-consistency tradeoffs.
 
-**5. Groq LLM Reasoning (Llama-3.3-70B)**
+**5. FastAPI SSE Backend (`src/api.py`)**
+
+A non-blocking FastAPI server that streams every stage of query processing to the frontend via Server-Sent Events. Every event fires at the **exact moment** the real operation completes — no fake delays or artificial timers. Real millisecond timings are captured via `perf_counter` and sent to the UI.
+
+**6. Groq LLM Reasoning (Llama-3.3-70B)**
 
 Retrieved context is sent to Groq with a "Senior Compliance Officer" persona prompt. The model is instructed to:
 - Cite specific document sections and regulation numbers
 - Flag ambiguities or conflicting guidance across documents
 - Refuse to speculate outside the retrieved context
 - Use formal, jurisdiction-appropriate language
+
+Responses are **streamed token by token** — the first token fires the `llm done` event with real TTFT (Time-To-First-Token).
+
+**7. ComplianceAI Chat UI (`frontend/index.html`)**
+
+A single-file chat interface with:
+- Live **thinking trace** — each step appears as it actually completes
+- **Token streaming** — answer builds word-by-word like ChatGPT
+- **Chunk evidence cards** — shows exact source snippets with similarity scores
+- **Auto-collapsing trace** — folds away when answer is ready
+- **Sidebar** — live document list, pipeline status, model info
 
 ---
 
@@ -151,8 +186,10 @@ Retrieved context is sent to Groq with a "Senior Compliance Officer" persona pro
 - 🔒 **Air-gapped embedding** — no document content ever leaves your environment
 - 📄 **Financial-grade PDF parsing** — handles complex regulatory layouts other parsers break on
 - 🤖 **Compliance-persona LLM** — responses modeled on a Senior Compliance Officer
+- 💬 **Real-time chat UI** — GPT-style interface with live reasoning trace
+- ⚡ **True SSE streaming** — every step tied to real operations, real ms timings
 - ♻️ **Automatic document lifecycle** — deletions and supersessions handled automatically
-- ⚡ **CUDA-accelerated** — both parsing and embedding optimized for GPU, with CPU fallback
+- 🖥️ **CUDA-accelerated** — both parsing and embedding optimized for GPU, with CPU fallback
 - 🧩 **Modular design** — swap out any component (embedder, LLM, storage) independently
 - 🐳 **Docker-ready** — multi-stage Dockerfile with health check and non-root user
 - 🧪 **Tested** — unit tests for core query pipeline and embedding utilities
@@ -166,12 +203,15 @@ Retrieved context is sent to Groq with a "Senior Compliance Officer" persona pro
 RAG-Regulation-Compliance/
 ├── src/
 │   ├── __init__.py
-│   ├── main.py               # Entry point — starts the Pathway streaming server
-│   ├── answerer.py           # Query client — retrieval, context building, Groq API
+│   ├── main.py               # Pathway streaming server — Google Drive → VectorStore
+│   ├── answerer.py           # Terminal query client — retrieval, context, Groq API
+│   ├── api.py                # FastAPI SSE backend — real-time streaming endpoint
 │   └── utils/
 │       ├── __init__.py
 │       ├── parser.py         # Docling configuration for complex regulatory PDFs
 │       └── embeddings.py     # SentenceTransformer wrapper with CUDA auto-detection
+├── frontend/
+│   └── index.html            # ComplianceAI chat UI — single-file, no build step
 ├── tests/
 │   ├── conftest.py           # Pytest configuration and shared path setup
 │   ├── test_answerer.py      # Unit tests for context building and source extraction
@@ -192,13 +232,17 @@ RAG-Regulation-Compliance/
 
 ### Key File Responsibilities
 
-**`src/main.py`** — Bootstraps the entire Pathway pipeline. Reads config from environment variables (no hardcoded paths), validates credentials, wires together parsing → embedding → indexing, and starts the `VectorStoreServer`. Long-running process.
+**`src/main.py`** — Bootstraps the entire Pathway pipeline. Reads config from environment variables, validates credentials, wires together parsing → embedding → indexing, and starts the `VectorStoreServer` on port 8000. Long-running process.
 
-**`src/answerer.py`** — Separate client process. Accepts natural language queries, retrieves top-k semantically relevant chunks from the running server, builds labelled context with source attribution, and calls Groq. Can be run interactively or integrated into a REST endpoint.
+**`src/api.py`** — FastAPI backend with a single SSE streaming endpoint (`POST /api/query`). Every event — embed, retrieve, chunk, token — fires immediately after the real operation completes. No fake delays. Also exposes `/api/health` and `/api/documents`.
+
+**`src/answerer.py`** — Standalone terminal client. Accepts natural language queries, retrieves top-k chunks, builds labelled context, and calls Groq. Can be used independently without the UI.
+
+**`frontend/index.html`** — Zero-dependency single-file chat UI. Opens directly in a browser — no build step, no npm, no bundler. Connects to the FastAPI backend via SSE.
 
 **`src/utils/parser.py`** — Wraps Docling with configuration tuned for regulatory PDFs: multi-column detection, table extraction, and section heading handling.
 
-**`src/utils/embeddings.py`** — Wraps `SentenceTransformer` with automatic CUDA → MPS → CPU device fallback. Ensures the pipeline runs correctly in any environment without manual configuration.
+**`src/utils/embeddings.py`** — Wraps `SentenceTransformer` with automatic CUDA → MPS → CPU device fallback.
 
 ---
 
@@ -251,27 +295,50 @@ GROQ_API_KEY=your_groq_api_key_here
 GDRIVE_FOLDER_ID=your_google_drive_folder_id_here
 GOOGLE_CREDENTIALS_PATH=credentials.json
 EMBEDDING_MODEL=all-MiniLM-L6-v2
-EMBEDDING_DEVICE=cuda
+EMBEDDING_DEVICE=cpu              # use 'cuda' if you have an NVIDIA GPU
 VECTOR_STORE_HOST=127.0.0.1
 VECTOR_STORE_PORT=8000
+VECTOR_STORE_URL=http://127.0.0.1:8000/v1/retrieve
+VECTOR_STORE_STATS_URL=http://127.0.0.1:8000/v1/statistics
 RETRIEVAL_TOP_K=3
+API_HOST=0.0.0.0
+API_PORT=8080
 ```
 
 ---
 
 ## 🚀 Usage
 
-### Option A — Run Directly
+### Option A — Chat UI (Recommended)
 
-**Terminal 1 — Start the streaming pipeline:**
+**Terminal 1 — Start the Pathway streaming pipeline:**
 
 ```bash
 python src/main.py
 ```
 
-You will see logs confirming the Google Drive listener is active and documents are being indexed.
+Wait for indexing logs to confirm documents are indexed.
 
-**Terminal 2 — Query the system:**
+**Terminal 2 — Start the FastAPI backend:**
+
+```bash
+uvicorn src.api:app --host 0.0.0.0 --port 8080 --reload
+```
+
+**Open the UI in your browser:**
+
+```bash
+# Linux
+firefox frontend/index.html &
+
+# macOS
+open frontend/index.html
+
+# Windows
+start frontend/index.html
+```
+
+### Option B — Terminal Client
 
 ```bash
 python src/answerer.py
@@ -285,19 +352,26 @@ Example queries:
 🤖 Compliance Query: Summarize all open audit findings related to KYC procedures.
 ```
 
-### Option B — Run with Docker
+### Option C — Run with Docker
 
 ```bash
 # Build the image
 docker build -t compliance-rag .
 
-# Start the pipeline server
+# Start the Pathway pipeline server
 docker run --gpus all \
   -e GROQ_API_KEY=your_key \
   -e GDRIVE_FOLDER_ID=your_folder_id \
   -v $(pwd)/credentials.json:/app/credentials.json:ro \
   -p 8000:8000 \
   compliance-rag
+
+# Start the FastAPI backend
+docker run \
+  -e GROQ_API_KEY=your_key \
+  -p 8080:8080 \
+  compliance-rag \
+  python -m uvicorn src.api:app --host 0.0.0.0 --port 8080
 ```
 
 ### Run Tests
@@ -330,16 +404,28 @@ pytest tests/ -v
 6. VectorStoreServer updates in-memory index (atomic, no downtime)
          │
          ▼
-7. Compliance officer submits query via answerer.py
+7. Compliance officer types query in the Chat UI
          │
          ▼
-8. Query embedded and top-k most similar chunks retrieved
+8. FastAPI receives query → fires SSE "embed active" event to UI
          │
          ▼
-9. Chunks + query sent to Groq (Llama-3.3-70B) with compliance persona
+9. Pathway embeds query + retrieves top-k chunks (single real HTTP call)
          │
          ▼
-10. Formal, citation-grounded response returned to the officer
+10. FastAPI fires "embed done Xms" + "retrieve done Xms" + chunk events to UI
+         │
+         ▼
+11. FastAPI opens Groq stream → fires "llm active" event
+         │
+         ▼
+12. First token arrives → fires "llm done Xms TTFT" event
+         │
+         ▼
+13. Tokens stream to UI word-by-word via SSE token events
+         │
+         ▼
+14. Formal, citation-grounded response rendered in chat
 ```
 
 ---
@@ -352,6 +438,7 @@ pytest tests/ -v
 | Query-to-response latency | ~1.5–3 seconds (end-to-end) |
 | Embedding throughput (CUDA) | ~500 chunks/second |
 | PDF parsing (complex 50-page doc) | ~8–12 seconds |
+| SSE step accuracy | Real `perf_counter` ms — no fake timers |
 | Supported document types | PDF, DOCX, TXT |
 | LLM model | Llama-3.3-70B via Groq |
 
@@ -370,14 +457,19 @@ pytest tests/ -v
 
 ## 🗺️ Roadmap
 
-- [ ] REST API wrapper around `answerer.py` for dashboard integration
-- [ ] Streamlit UI for compliance officers
-- [ ] Multi-folder support with per-folder access controls
+- [x] Terminal query client (`src/answerer.py`)
+- [x] FastAPI SSE backend (`src/api.py`)
+- [x] Real-time chat UI with thinking trace (`frontend/index.html`)
+- [x] True SSE streaming — real ms timings, no fake delays
+- [ ] PDF upload directly from the UI (drag-and-drop → auto-push to Google Drive)
+- [ ] Query history panel with search
 - [ ] Audit trail logging — every query and source chunk logged for regulators
+- [ ] Multi-folder support with per-folder access controls
 - [ ] SharePoint and AWS S3 as alternative document sources
 - [ ] Cross-document contradiction detection (conflicting policy versions)
 - [ ] Confidence scoring per retrieved chunk
 - [ ] Support for multilingual regulatory documents
+- [ ] REST API wrapper for dashboard integration
 
 ---
 
